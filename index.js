@@ -1,33 +1,21 @@
-var split = require('browser-split')
-var ClassList = require('class-list')
-
-var w = typeof window === 'undefined' ? require('html-element') : window
-var document = w.document
-var Text = w.Text
-
-function context () {
-
+var h = (function () {
   var cleanupFuncs = []
 
-  function h() {
-    var args = [].slice.call(arguments), e = null
+  function h(...args) {
+    var e = null
     function item (l) {
       var r
       function parseClass (string) {
-        // Our minimal parser doesn’t understand escaping CSS special
-        // characters like `#`. Don’t use them. More reading:
-        // https://mathiasbynens.be/notes/css-escapes .
-
-        var m = split(string, /([\.#]?[^\s#.]+)/)
+        var m = string.split(/([\.#]?[^\s#.]+)/)
         if(/^\.|#/.test(m[1]))
           e = document.createElement('div')
-        forEach(m, function (v) {
+        m.forEach(function (v) {
           var s = v.substring(1,v.length)
           if(!v) return
           if(!e)
             e = document.createElement(v)
           else if (v[0] === '.')
-            ClassList(e).add(s)
+            e.classList.add(s)
           else if (v[0] === '#')
             e.setAttribute('id', s)
         })
@@ -47,9 +35,8 @@ function context () {
         || l instanceof RegExp ) {
           e.appendChild(r = document.createTextNode(l.toString()))
       }
-      //there might be a better way to handle this...
-      else if (isArray(l))
-        forEach(l, item)
+      else if (Array.isArray(l))
+        l.forEach(item)
       else if(isNode(l))
         e.appendChild(r = l)
       else if(l instanceof Text)
@@ -59,17 +46,10 @@ function context () {
           if('function' === typeof l[k]) {
             if(/^on\w+/.test(k)) {
               (function (k, l) { // capture k, l in the closure
-                if (e.addEventListener){
-                  e.addEventListener(k.substring(2), l[k], false)
-                  cleanupFuncs.push(function(){
-                    e.removeEventListener(k.substring(2), l[k], false)
-                  })
-                }else{
-                  e.attachEvent(k, l[k])
-                  cleanupFuncs.push(function(){
-                    e.detachEvent(k, l[k])
-                  })
-                }
+                e.addEventListener(k.substring(2), l[k], false)
+                cleanupFuncs.push(function(){
+                  e.removeEventListener(k.substring(2), l[k], false)
+                })
               })(k, l)
             } else {
               // observable
@@ -91,7 +71,7 @@ function context () {
                     e.style.setProperty(s, val)
                   }))
                 } else
-                  var match = l[k][s].match(/(.*)\W+!important\W*$/);
+                  var match = l[k][s].match(/(.*)\W+!important\W*$/)
                   if (match) {
                     e.style.setProperty(s, match[1], 'important')
                   } else {
@@ -104,7 +84,7 @@ function context () {
               e.setAttribute(v, l[k][v])
             }
           }
-          else if (k.substr(0, 5) === "data-") {
+          else if (k.substr(0, 5) === 'data-') {
             e.setAttribute(k, l[k])
           } else {
             e[k] = l[k]
@@ -122,7 +102,6 @@ function context () {
             r.textContent = v
         }))
       }
-
       return r
     }
     while(args.length)
@@ -138,23 +117,10 @@ function context () {
     cleanupFuncs.length = 0
   }
 
+  function isNode (el) {
+    return el && el.nodeName && el.nodeType
+  }
+
   return h
-}
-
-var h = module.exports = context()
-h.context = context
-
-function isNode (el) {
-  return el && el.nodeName && el.nodeType
-}
-
-function forEach (arr, fn) {
-  if (arr.forEach) return arr.forEach(fn)
-  for (var i = 0; i < arr.length; i++) fn(arr[i], i)
-}
-
-function isArray (arr) {
-  return Object.prototype.toString.call(arr) == '[object Array]'
-}
-
+}())
 
